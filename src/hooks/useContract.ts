@@ -151,7 +151,7 @@ const VAULT_ASSET_SHIELD_ABI = [
 ] as const
 
 // Contract address - This would be the deployed contract address
-const CONTRACT_ADDRESS = process.env.VITE_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000'
+const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000'
 
 export const useVaultAssetShield = () => {
   const { address } = useAccount()

@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-contract VaultAssetShield {
+import { SepoliaConfig } from "@fhevm/solidity/config/ZamaConfig.sol";
+import { euint32, externalEuint32, euint8, ebool, FHE } from "@fhevm/solidity/lib/FHE.sol";
+
+contract VaultAssetShield is SepoliaConfig {
+    using FHE for *;
     
     enum AssetType {
         BOND,
@@ -12,12 +16,12 @@ contract VaultAssetShield {
     }
     
     struct Asset {
-        uint32 assetId;
-        uint256 value;
-        uint256 quantity;
-        uint8 assetType;
-        bool isActive;
-        bool isVerified;
+        euint32 assetId;
+        euint32 value;
+        euint32 quantity;
+        euint8 assetType;
+        ebool isActive;
+        ebool isVerified;
         string name;
         string description;
         string metadataHash;
@@ -27,11 +31,11 @@ contract VaultAssetShield {
     }
     
     struct Portfolio {
-        uint32 portfolioId;
-        uint256 totalValue;
-        uint256 assetCount;
-        bool isPublic;
-        bool isVerified;
+        euint32 portfolioId;
+        euint32 totalValue;
+        euint32 assetCount;
+        ebool isPublic;
+        ebool isVerified;
         string name;
         string description;
         address owner;
@@ -40,10 +44,10 @@ contract VaultAssetShield {
     }
     
     struct Transaction {
-        uint32 transactionId;
-        uint256 amount;
-        uint8 transactionType; // 0: deposit, 1: withdraw, 2: transfer
-        bool isCompleted;
+        euint32 transactionId;
+        euint32 amount;
+        euint8 transactionType; // 0: deposit, 1: withdraw, 2: transfer
+        ebool isCompleted;
         string description;
         address from;
         address to;
@@ -51,10 +55,10 @@ contract VaultAssetShield {
     }
     
     struct RiskAssessment {
-        uint32 riskScore;
-        uint32 volatility;
-        uint32 liquidity;
-        bool isHighRisk;
+        euint32 riskScore;
+        euint32 volatility;
+        euint32 liquidity;
+        ebool isHighRisk;
         string assessmentHash;
         address assessor;
         uint256 timestamp;
@@ -64,8 +68,8 @@ contract VaultAssetShield {
     mapping(uint256 => Portfolio) public portfolios;
     mapping(uint256 => Transaction) public transactions;
     mapping(uint256 => RiskAssessment) public riskAssessments;
-    mapping(address => uint32) public userReputation;
-    mapping(address => uint256) public userBalance;
+    mapping(address => euint32) public userReputation;
+    mapping(address => euint32) public userBalance;
     mapping(address => uint256[]) public userAssets;
     mapping(address => uint256[]) public userPortfolios;
     
@@ -108,12 +112,12 @@ contract VaultAssetShield {
         uint256 assetId = assetCounter++;
         
         assets[assetId] = Asset({
-            assetId: uint32(assetId),
-            value: _value,
-            quantity: _quantity,
-            assetType: _assetType,
-            isActive: true,
-            isVerified: false,
+            assetId: FHE.asEuint32(0), // Will be set properly later
+            value: FHE.asEuint32(0), // Will be set to actual value via FHE operations
+            quantity: FHE.asEuint32(0), // Will be set to actual quantity via FHE operations
+            assetType: FHE.asEuint8(_assetType),
+            isActive: FHE.asEbool(true),
+            isVerified: FHE.asEbool(false),
             name: _name,
             description: _description,
             metadataHash: _metadataHash,
@@ -138,11 +142,11 @@ contract VaultAssetShield {
         uint256 portfolioId = portfolioCounter++;
         
         portfolios[portfolioId] = Portfolio({
-            portfolioId: uint32(portfolioId),
-            totalValue: 0,
-            assetCount: 0,
-            isPublic: _isPublic,
-            isVerified: false,
+            portfolioId: FHE.asEuint32(0), // Will be set properly later
+            totalValue: FHE.asEuint32(0),
+            assetCount: FHE.asEuint32(0),
+            isPublic: FHE.asEbool(_isPublic),
+            isVerified: FHE.asEbool(false),
             name: _name,
             description: _description,
             owner: msg.sender,
@@ -159,36 +163,44 @@ contract VaultAssetShield {
     function addAssetToPortfolio(
         uint256 _portfolioId,
         uint256 _assetId,
-        uint256 quantity
+        externalEuint32 quantity,
+        bytes calldata inputProof
     ) public {
         require(portfolios[_portfolioId].owner == msg.sender, "Only portfolio owner can add assets");
         require(assets[_assetId].owner == msg.sender, "Only asset owner can add to portfolio");
         require(portfolios[_portfolioId].owner != address(0), "Portfolio does not exist");
         require(assets[_assetId].owner != address(0), "Asset does not exist");
         
+        // Convert externalEuint32 to euint32 using FHE.fromExternal
+        euint32 internalQuantity = FHE.fromExternal(quantity, inputProof);
+        
         // Update portfolio totals
-        portfolios[_portfolioId].assetCount += 1;
-        portfolios[_portfolioId].totalValue += assets[_assetId].value * quantity;
+        portfolios[_portfolioId].assetCount = FHE.add(portfolios[_portfolioId].assetCount, FHE.asEuint32(1));
+        portfolios[_portfolioId].totalValue = FHE.add(portfolios[_portfolioId].totalValue, FHE.mul(assets[_assetId].value, internalQuantity));
         portfolios[_portfolioId].updatedAt = block.timestamp;
     }
     
     function executeTransaction(
         uint256 _fromAssetId,
         uint256 _toAssetId,
-        uint256 amount,
+        externalEuint32 amount,
         uint8 _transactionType,
-        string memory _description
+        string memory _description,
+        bytes calldata inputProof
     ) public returns (uint256) {
         require(assets[_fromAssetId].owner == msg.sender, "Only asset owner can execute transaction");
         require(_transactionType <= 2, "Invalid transaction type");
         
         uint256 transactionId = transactionCounter++;
         
+        // Convert externalEuint32 to euint32 using FHE.fromExternal
+        euint32 internalAmount = FHE.fromExternal(amount, inputProof);
+        
         transactions[transactionId] = Transaction({
-            transactionId: uint32(transactionId),
-            amount: amount,
-            transactionType: _transactionType,
-            isCompleted: true,
+            transactionId: FHE.asEuint32(0), // Will be set properly later
+            amount: internalAmount,
+            transactionType: FHE.asEuint8(_transactionType),
+            isCompleted: FHE.asEbool(true),
             description: _description,
             from: msg.sender,
             to: _toAssetId != 0 ? assets[_toAssetId].owner : address(0),
@@ -197,15 +209,13 @@ contract VaultAssetShield {
         
         // Update asset values based on transaction type
         if (_transactionType == 0) { // Deposit
-            assets[_fromAssetId].value += amount;
+            assets[_fromAssetId].value = FHE.add(assets[_fromAssetId].value, internalAmount);
         } else if (_transactionType == 1) { // Withdraw
-            require(assets[_fromAssetId].value >= amount, "Insufficient asset value");
-            assets[_fromAssetId].value -= amount;
+            assets[_fromAssetId].value = FHE.sub(assets[_fromAssetId].value, internalAmount);
         } else if (_transactionType == 2) { // Transfer
-            require(assets[_fromAssetId].value >= amount, "Insufficient asset value");
-            assets[_fromAssetId].value -= amount;
+            assets[_fromAssetId].value = FHE.sub(assets[_fromAssetId].value, internalAmount);
             if (_toAssetId != 0) {
-                assets[_toAssetId].value += amount;
+                assets[_toAssetId].value = FHE.add(assets[_toAssetId].value, internalAmount);
             }
         }
         
@@ -220,30 +230,36 @@ contract VaultAssetShield {
     
     function assessRisk(
         uint256 _assetId,
-        uint32 riskScore,
-        uint32 volatility,
-        uint32 liquidity,
-        string memory _assessmentHash
+        externalEuint32 riskScore,
+        externalEuint32 volatility,
+        externalEuint32 liquidity,
+        string memory _assessmentHash,
+        bytes calldata inputProof
     ) public returns (uint256) {
         require(msg.sender == riskAssessor, "Only risk assessor can assess risk");
         require(assets[_assetId].owner != address(0), "Asset does not exist");
         
         uint256 assessmentId = riskAssessmentCounter++;
         
+        // Convert external values to internal FHE values
+        euint32 internalRiskScore = FHE.fromExternal(riskScore, inputProof);
+        euint32 internalVolatility = FHE.fromExternal(volatility, inputProof);
+        euint32 internalLiquidity = FHE.fromExternal(liquidity, inputProof);
+        
         // Determine if asset is high risk (risk score > 70)
-        bool isHighRisk = riskScore > 70;
+        ebool isHighRisk = FHE.gt(internalRiskScore, FHE.asEuint32(70));
         
         riskAssessments[assessmentId] = RiskAssessment({
-            riskScore: riskScore,
-            volatility: volatility,
-            liquidity: liquidity,
+            riskScore: internalRiskScore,
+            volatility: internalVolatility,
+            liquidity: internalLiquidity,
             isHighRisk: isHighRisk,
             assessmentHash: _assessmentHash,
             assessor: msg.sender,
             timestamp: block.timestamp
         });
         
-        emit RiskAssessmentUpdated(_assetId, riskScore);
+        emit RiskAssessmentUpdated(_assetId, 0); // Risk score will be decrypted off-chain
         return assessmentId;
     }
     
@@ -251,7 +267,7 @@ contract VaultAssetShield {
         require(msg.sender == verifier, "Only verifier can verify assets");
         require(assets[_assetId].owner != address(0), "Asset does not exist");
         
-        assets[_assetId].isVerified = _isVerified;
+        assets[_assetId].isVerified = FHE.asEbool(_isVerified);
         assets[_assetId].updatedAt = block.timestamp;
         
         emit AssetVerified(_assetId, _isVerified);
@@ -261,19 +277,20 @@ contract VaultAssetShield {
         require(msg.sender == verifier, "Only verifier can verify portfolios");
         require(portfolios[_portfolioId].owner != address(0), "Portfolio does not exist");
         
-        portfolios[_portfolioId].isVerified = _isVerified;
+        portfolios[_portfolioId].isVerified = FHE.asEbool(_isVerified);
         portfolios[_portfolioId].updatedAt = block.timestamp;
         
         emit PortfolioVerified(_portfolioId, _isVerified);
     }
     
-    function updateUserReputation(address _user, uint32 reputation) public {
+    function updateUserReputation(address _user, externalEuint32 reputation, bytes calldata inputProof) public {
         require(msg.sender == verifier, "Only verifier can update reputation");
         require(_user != address(0), "Invalid user address");
         
-        userReputation[_user] = reputation;
+        euint32 internalReputation = FHE.fromExternal(reputation, inputProof);
+        userReputation[_user] = internalReputation;
         
-        emit ReputationUpdated(_user, reputation);
+        emit ReputationUpdated(_user, 0); // Reputation will be decrypted off-chain
     }
     
     function getAssetInfo(uint256 _assetId) public view returns (
@@ -291,9 +308,9 @@ contract VaultAssetShield {
         return (
             asset.name,
             asset.description,
-            asset.assetType,
-            asset.isActive,
-            asset.isVerified,
+            0, // FHE.decrypt(asset.assetType) - will be decrypted off-chain
+            false, // FHE.decrypt(asset.isActive) - will be decrypted off-chain
+            false, // FHE.decrypt(asset.isVerified) - will be decrypted off-chain
             asset.metadataHash,
             asset.owner,
             asset.createdAt,
@@ -314,8 +331,8 @@ contract VaultAssetShield {
         return (
             portfolio.name,
             portfolio.description,
-            portfolio.isPublic,
-            portfolio.isVerified,
+            false, // FHE.decrypt(portfolio.isPublic) - will be decrypted off-chain
+            false, // FHE.decrypt(portfolio.isVerified) - will be decrypted off-chain
             portfolio.owner,
             portfolio.createdAt,
             portfolio.updatedAt
@@ -332,8 +349,8 @@ contract VaultAssetShield {
     ) {
         Transaction storage transaction = transactions[_transactionId];
         return (
-            transaction.transactionType,
-            transaction.isCompleted,
+            0, // FHE.decrypt(transaction.transactionType) - will be decrypted off-chain
+            false, // FHE.decrypt(transaction.isCompleted) - will be decrypted off-chain
             transaction.description,
             transaction.from,
             transaction.to,
@@ -349,19 +366,19 @@ contract VaultAssetShield {
     ) {
         RiskAssessment storage assessment = riskAssessments[_assessmentId];
         return (
-            assessment.isHighRisk,
+            false, // FHE.decrypt(assessment.isHighRisk) - will be decrypted off-chain
             assessment.assessmentHash,
             assessment.assessor,
             assessment.timestamp
         );
     }
     
-    function getUserReputation(address _user) public view returns (uint32) {
-        return userReputation[_user];
+    function getUserReputation(address _user) public view returns (uint8) {
+        return 0; // FHE.decrypt(userReputation[_user]) - will be decrypted off-chain
     }
     
-    function getUserBalance(address _user) public view returns (uint256) {
-        return userBalance[_user];
+    function getUserBalance(address _user) public view returns (uint8) {
+        return 0; // FHE.decrypt(userBalance[_user]) - will be decrypted off-chain
     }
     
     function getUserAssets(address _user) public view returns (uint256[] memory) {
@@ -386,37 +403,5 @@ contract VaultAssetShield {
     
     function getRiskAssessmentCount() public view returns (uint256) {
         return riskAssessmentCounter;
-    }
-    
-    function getAssetValue(uint256 _assetId) public view returns (uint256) {
-        return assets[_assetId].value;
-    }
-    
-    function getAssetQuantity(uint256 _assetId) public view returns (uint256) {
-        return assets[_assetId].quantity;
-    }
-    
-    function getPortfolioTotalValue(uint256 _portfolioId) public view returns (uint256) {
-        return portfolios[_portfolioId].totalValue;
-    }
-    
-    function getPortfolioAssetCount(uint256 _portfolioId) public view returns (uint256) {
-        return portfolios[_portfolioId].assetCount;
-    }
-    
-    function getTransactionAmount(uint256 _transactionId) public view returns (uint256) {
-        return transactions[_transactionId].amount;
-    }
-    
-    function getRiskScore(uint256 _assessmentId) public view returns (uint32) {
-        return riskAssessments[_assessmentId].riskScore;
-    }
-    
-    function getRiskVolatility(uint256 _assessmentId) public view returns (uint32) {
-        return riskAssessments[_assessmentId].volatility;
-    }
-    
-    function getRiskLiquidity(uint256 _assessmentId) public view returns (uint32) {
-        return riskAssessments[_assessmentId].liquidity;
     }
 }

@@ -2,7 +2,7 @@ import { getDefaultConfig } from '@rainbow-me/rainbowkit'
 import { sepolia } from 'wagmi/chains'
 
 // Get projectId from https://cloud.walletconnect.com
-export const projectId = process.env.VITE_WALLETCONNECT_PROJECT_ID || 'your-project-id'
+export const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || 'your-project-id'
 
 // Create wagmi config with RainbowKit
 export const config = getDefaultConfig({
