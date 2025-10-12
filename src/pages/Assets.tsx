@@ -32,18 +32,71 @@ const Assets = () => {
     const assets = [];
     const assetCountNum = assetCount ? Number(assetCount) : 0;
     
+    // Real-world asset data with realistic values and lower minimum investments
+    const realWorldAssets = [
+      {
+        title: "Manhattan Office Tower",
+        type: "real-estate" as const,
+        value: "$350,000",
+        apy: "8.5%",
+        minInvestment: "$100",
+        image: realEstate1
+      },
+      {
+        title: "US Treasury Bonds 2024",
+        type: "bonds" as const,
+        value: "$175,000",
+        apy: "3.5%",
+        minInvestment: "$100",
+        image: bonds1
+      },
+      {
+        title: "Tech Startup Equity",
+        type: "stock" as const,
+        value: "$262,500",
+        apy: "15.0%",
+        minInvestment: "$100",
+        image: realEstate1
+      },
+      {
+        title: "Gold Commodity Fund",
+        type: "commodity" as const,
+        value: "$700,000",
+        apy: "6.2%",
+        minInvestment: "$100",
+        image: bonds1
+      },
+      {
+        title: "Bitcoin ETF",
+        type: "crypto" as const,
+        value: "$525,000",
+        apy: "12.8%",
+        minInvestment: "$100",
+        image: realEstate1
+      },
+      {
+        title: "European Real Estate Fund",
+        type: "real-estate" as const,
+        value: "$1,050,000",
+        apy: "7.3%",
+        minInvestment: "$100",
+        image: bonds1
+      }
+    ];
+    
     for (let i = 0; i < Math.max(assetCountNum, 6); i++) {
       const assetId = i;
       const isUserAsset = userAssetIds.includes(assetId);
+      const assetData = realWorldAssets[i] || realWorldAssets[0];
       
       assets.push({
         assetId,
-        title: `Asset ${assetId + 1}`,
-        type: (i % 2 === 0 ? "real-estate" : "bonds") as const,
-        value: `$${(Math.random() * 100 + 10).toFixed(1)}M`,
-        apy: `${(Math.random() * 5 + 5).toFixed(1)}%`,
-        minInvestment: `$${(Math.random() * 50000 + 10000).toLocaleString()}`,
-        image: i % 2 === 0 ? realEstate1 : bonds1,
+        title: assetData.title,
+        type: assetData.type,
+        value: assetData.value,
+        apy: assetData.apy,
+        minInvestment: assetData.minInvestment,
+        image: assetData.image,
         isUserAsset
       });
     }
