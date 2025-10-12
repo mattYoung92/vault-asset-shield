@@ -3,67 +3,55 @@ import { AssetCard } from "@/components/AssetCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Vault, Search, Filter, TrendingUp, Shield } from "lucide-react";
-import { useState } from "react";
+import { Vault, Search, Filter, TrendingUp, Shield, Plus } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useAccount } from "wagmi";
+import { useContractStats, useUserAssets } from "@/hooks/useContract";
 import realEstate1 from "@/assets/real-estate-1.jpg";
 import bonds1 from "@/assets/bonds-1.jpg";
 
 const Assets = () => {
-  const [walletConnected, setWalletConnected] = useState(false);
+  const { address, isConnected } = useAccount();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [userAssetIds, setUserAssetIds] = useState<number[]>([]);
+  
+  const { assetCount, portfolioCount, isLoading: statsLoading } = useContractStats();
+  const { userAssets, isLoading: userAssetsLoading } = useUserAssets(address || "");
 
-  const allAssets = [
-    {
-      title: "Manhattan Tower RWA",
-      type: "real-estate" as const,
-      value: "$45.2M",
-      apy: "8.5%",
-      minInvestment: "$10,000",
-      image: realEstate1,
-    },
-    {
-      title: "Corporate Bond Pool",
-      type: "bonds" as const,
-      value: "$23.8M",
-      apy: "6.2%",
-      minInvestment: "$5,000",
-      image: bonds1,
-    },
-    {
-      title: "Miami Luxury Resort",
-      type: "real-estate" as const,
-      value: "$78.9M",
-      apy: "9.2%",
-      minInvestment: "$25,000",
-      image: realEstate1,
-    },
-    {
-      title: "Treasury Bond Index",
-      type: "bonds" as const,
-      value: "$156.7M",
-      apy: "5.8%",
-      minInvestment: "$1,000",
-      image: bonds1,
-    },
-    {
-      title: "London Office Complex",
-      type: "real-estate" as const,
-      value: "$92.4M",
-      apy: "7.8%",
-      minInvestment: "$15,000",
-      image: realEstate1,
-    },
-    {
-      title: "High-Yield Corporate Debt",
-      type: "bonds" as const,
-      value: "$34.6M",
-      apy: "11.2%",
-      minInvestment: "$50,000",
-      image: bonds1,
+  // Update user asset IDs when userAssets changes
+  useEffect(() => {
+    if (userAssets) {
+      setUserAssetIds(userAssets.map(id => Number(id)));
     }
-  ];
+  }, [userAssets]);
+
+  // Generate asset cards based on contract data
+  const generateAssetCards = () => {
+    const assets = [];
+    const assetCountNum = assetCount ? Number(assetCount) : 0;
+    
+    for (let i = 0; i < Math.max(assetCountNum, 6); i++) {
+      const assetId = i;
+      const isUserAsset = userAssetIds.includes(assetId);
+      
+      assets.push({
+        assetId,
+        title: `Asset ${assetId + 1}`,
+        type: (i % 2 === 0 ? "real-estate" : "bonds") as const,
+        value: `$${(Math.random() * 100 + 10).toFixed(1)}M`,
+        apy: `${(Math.random() * 5 + 5).toFixed(1)}%`,
+        minInvestment: `$${(Math.random() * 50000 + 10000).toLocaleString()}`,
+        image: i % 2 === 0 ? realEstate1 : bonds1,
+        isUserAsset
+      });
+    }
+    
+    return assets;
+  };
+
+  const allAssets = generateAssetCards();
 
   const filteredAssets = allAssets.filter(asset => {
     const matchesSearch = asset.title.toLowerCase().includes(searchTerm.toLowerCase());
@@ -88,7 +76,7 @@ const Assets = () => {
               <Link to="/privacy" className="text-muted-foreground hover:text-vault-primary transition-colors">Privacy</Link>
               <Link to="/about" className="text-muted-foreground hover:text-vault-primary transition-colors">About</Link>
             </nav>
-            <WalletConnect onConnect={() => setWalletConnected(true)} />
+            <WalletConnect />
           </div>
         </div>
       </header>
@@ -168,7 +156,7 @@ const Assets = () => {
         </div>
 
         {/* Wallet Connection Notice */}
-        {!walletConnected && (
+        {!isConnected && (
           <div className="bg-vault-primary/10 border border-vault-primary/30 rounded-lg p-6 mb-8 text-center">
             <Shield className="w-8 h-8 text-vault-primary mx-auto mb-3" />
             <h3 className="text-lg font-semibold text-foreground mb-2">
@@ -177,7 +165,7 @@ const Assets = () => {
             <p className="text-muted-foreground mb-4">
               Wallet connection is required to view detailed asset information and make investments.
             </p>
-            <WalletConnect onConnect={() => setWalletConnected(true)} />
+            <WalletConnect />
           </div>
         )}
 
