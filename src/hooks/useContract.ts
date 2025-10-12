@@ -2,8 +2,53 @@ import { useAccount, useReadContract, useWriteContract, useWaitForTransactionRec
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-// Contract ABI - Updated for non-encrypted version
+// Contract ABI - Updated for non-encrypted version with investment features
 const VAULT_ASSET_SHIELD_ABI = [
+  {
+    "inputs": [
+      {"internalType": "uint256", "name": "_assetId", "type": "uint256"},
+      {"internalType": "string", "name": "_description", "type": "string"}
+    ],
+    "name": "invest",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "uint256", "name": "_assetId", "type": "uint256"}
+    ],
+    "name": "withdrawInvestment",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "address", "name": "_user", "type": "address"},
+      {"internalType": "uint256", "name": "_assetId", "type": "uint256"}
+    ],
+    "name": "getUserInvestment",
+    "outputs": [
+      {"internalType": "uint256", "name": "amount", "type": "uint256"},
+      {"internalType": "uint256", "name": "timestamp", "type": "uint256"},
+      {"internalType": "uint256", "name": "apy", "type": "uint256"},
+      {"internalType": "bool", "name": "isActive", "type": "bool"},
+      {"internalType": "uint256", "name": "currentEarnings", "type": "uint256"}
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "address", "name": "_user", "type": "address"},
+      {"internalType": "uint256", "name": "_assetId", "type": "uint256"}
+    ],
+    "name": "calculateEarnings",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
   {
     "inputs": [
       {"internalType": "string", "name": "_name", "type": "string"},
@@ -220,6 +265,43 @@ export const useVaultAssetShield = () => {
     }
   }
 
+  const invest = async (
+    assetId: number,
+    description: string,
+    valueInWei: bigint
+  ) => {
+    try {
+      await writeContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: VAULT_ASSET_SHIELD_ABI,
+        functionName: 'invest',
+        args: [BigInt(assetId), description],
+        value: valueInWei,
+      })
+      toast.success("Investment transaction submitted!")
+    } catch (err) {
+      console.error('Failed to invest:', err)
+      toast.error("Failed to invest")
+    }
+  }
+
+  const withdrawInvestment = async (
+    assetId: number
+  ) => {
+    try {
+      await writeContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: VAULT_ASSET_SHIELD_ABI,
+        functionName: 'withdrawInvestment',
+        args: [BigInt(assetId)],
+      })
+      toast.success("Withdrawal transaction submitted!")
+    } catch (err) {
+      console.error('Failed to withdraw:', err)
+      toast.error("Failed to withdraw")
+    }
+  }
+
   const executeTransaction = async (
     fromAssetId: number,
     toAssetId: number,
@@ -245,6 +327,8 @@ export const useVaultAssetShield = () => {
     createAsset,
     createPortfolio,
     addAssetToPortfolio,
+    invest,
+    withdrawInvestment,
     executeTransaction,
     isPending,
     isConfirming,

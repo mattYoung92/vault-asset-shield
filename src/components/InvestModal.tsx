@@ -25,7 +25,7 @@ export const InvestModal = ({ isOpen, onClose, assetId, assetTitle, assetType, c
   const [isProcessing, setIsProcessing] = useState(false);
   const [step, setStep] = useState<"amount" | "review" | "success">("amount");
   const { toast } = useToast();
-  const { executeTransaction, isPending } = useVaultAssetShield();
+  const { invest, isPending } = useVaultAssetShield();
 
   const minAmount = minInvestment ? parseInt(minInvestment.replace(/[$,]/g, "")) : 10000;
   const amount = parseFloat(investmentAmount) || 0;
@@ -45,13 +45,14 @@ export const InvestModal = ({ isOpen, onClose, assetId, assetTitle, assetType, c
     setIsProcessing(true);
     
     try {
-      // Execute transaction on the smart contract
-      await executeTransaction(
+      // Convert USD amount to ETH, then to wei
+      const amountInWei = BigInt(Math.floor(amountInEth * 1e18));
+      
+      // Call the new invest function
+      await invest(
         assetId,
-        0, // No target asset for deposit
-        Math.floor(amount * 1e18), // Convert to wei
-        0, // Transaction type: deposit
-        `Investment in ${assetTitle}`
+        `Investment in ${assetTitle}`,
+        amountInWei
       );
       
       setStep("success");
