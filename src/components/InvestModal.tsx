@@ -100,16 +100,20 @@ export const InvestModal = ({ isOpen, onClose, assetId, assetTitle, assetType, c
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm text-muted-foreground">Asset Type</span>
                 <Badge variant="secondary">
-                  {asset.type === "real-estate" ? "Real Estate" : "Bonds"}
+                  {assetType === "real-estate" ? "Real Estate" : 
+                   assetType === "bonds" ? "Bonds" :
+                   assetType === "crypto" ? "Crypto" :
+                   assetType === "stock" ? "Stock" :
+                   assetType === "commodity" ? "Commodity" : "Asset"}
                 </Badge>
               </div>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm text-muted-foreground">Expected APY</span>
-                <span className="text-sm font-semibold text-green-400">{asset.apy}</span>
+                <span className="text-sm font-semibold text-green-400">8.5%</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Minimum Investment</span>
-                <span className="text-sm font-semibold text-foreground">{asset.minInvestment}</span>
+                <span className="text-sm font-semibold text-foreground">{minInvestment || "$100"}</span>
               </div>
             </Card>
 
@@ -129,7 +133,7 @@ export const InvestModal = ({ isOpen, onClose, assetId, assetTitle, assetType, c
                 </div>
                 {amount > 0 && amount < minAmount && (
                   <p className="text-sm text-destructive mt-1">
-                    Amount below minimum investment of {asset.minInvestment}
+                    Amount below minimum investment of {minInvestment || "$100"}
                   </p>
                 )}
               </div>
@@ -192,7 +196,7 @@ export const InvestModal = ({ isOpen, onClose, assetId, assetTitle, assetType, c
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Asset:</span>
-                  <span className="font-semibold text-foreground">{asset.title}</span>
+                  <span className="font-semibold text-foreground">{assetTitle}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Investment Amount:</span>
@@ -200,7 +204,7 @@ export const InvestModal = ({ isOpen, onClose, assetId, assetTitle, assetType, c
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Expected APY:</span>
-                  <span className="font-semibold text-green-400">{asset.apy}</span>
+                  <span className="font-semibold text-green-400">8.5%</span>
                 </div>
                 <Separator className="bg-vault-border" />
                 <div className="flex justify-between">
@@ -260,7 +264,7 @@ export const InvestModal = ({ isOpen, onClose, assetId, assetTitle, assetType, c
             <div>
               <h3 className="text-lg font-semibold text-foreground mb-2">Investment Successful!</h3>
               <p className="text-muted-foreground">
-                Your ${amount.toLocaleString()} investment in {asset.title} has been processed 
+                Your ${amount.toLocaleString()} investment in {assetTitle} has been processed 
                 with full privacy encryption.
               </p>
             </div>
