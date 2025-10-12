@@ -2,7 +2,7 @@ import { useAccount, useReadContract, useWriteContract, useWaitForTransactionRec
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-// Contract ABI - This would be generated from the compiled contract
+// Contract ABI - Updated for non-encrypted version
 const VAULT_ASSET_SHIELD_ABI = [
   {
     "inputs": [
@@ -25,6 +25,30 @@ const VAULT_ASSET_SHIELD_ABI = [
       {"internalType": "bool", "name": "_isPublic", "type": "bool"}
     ],
     "name": "createPortfolio",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "uint256", "name": "_portfolioId", "type": "uint256"},
+      {"internalType": "uint256", "name": "_assetId", "type": "uint256"},
+      {"internalType": "uint256", "name": "quantity", "type": "uint256"}
+    ],
+    "name": "addAssetToPortfolio",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "uint256", "name": "_fromAssetId", "type": "uint256"},
+      {"internalType": "uint256", "name": "_toAssetId", "type": "uint256"},
+      {"internalType": "uint256", "name": "amount", "type": "uint256"},
+      {"internalType": "uint8", "name": "_transactionType", "type": "uint8"},
+      {"internalType": "string", "name": "_description", "type": "string"}
+    ],
+    "name": "executeTransaction",
     "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -88,6 +112,41 @@ const VAULT_ASSET_SHIELD_ABI = [
     "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
     "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "_assetId", "type": "uint256"}],
+    "name": "getAssetValue",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "_assetId", "type": "uint256"}],
+    "name": "getAssetQuantity",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "_portfolioId", "type": "uint256"}],
+    "name": "getPortfolioTotalValue",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "_user", "type": "address"}],
+    "name": "getUserReputation",
+    "outputs": [{"internalType": "uint32", "name": "", "type": "uint32"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "_user", "type": "address"}],
+    "name": "getUserBalance",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
   }
 ] as const
 
@@ -142,9 +201,51 @@ export const useVaultAssetShield = () => {
     }
   }
 
+  const addAssetToPortfolio = async (
+    portfolioId: number,
+    assetId: number,
+    quantity: number
+  ) => {
+    try {
+      await writeContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: VAULT_ASSET_SHIELD_ABI,
+        functionName: 'addAssetToPortfolio',
+        args: [BigInt(portfolioId), BigInt(assetId), BigInt(quantity)],
+      })
+      toast.success("Asset added to portfolio!")
+    } catch (err) {
+      console.error('Failed to add asset to portfolio:', err)
+      toast.error("Failed to add asset to portfolio")
+    }
+  }
+
+  const executeTransaction = async (
+    fromAssetId: number,
+    toAssetId: number,
+    amount: number,
+    transactionType: number,
+    description: string
+  ) => {
+    try {
+      await writeContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: VAULT_ASSET_SHIELD_ABI,
+        functionName: 'executeTransaction',
+        args: [BigInt(fromAssetId), BigInt(toAssetId), BigInt(amount), transactionType, description],
+      })
+      toast.success("Transaction executed!")
+    } catch (err) {
+      console.error('Failed to execute transaction:', err)
+      toast.error("Failed to execute transaction")
+    }
+  }
+
   return {
     createAsset,
     createPortfolio,
+    addAssetToPortfolio,
+    executeTransaction,
     isPending,
     isConfirming,
     isConfirmed,
@@ -230,5 +331,80 @@ export const useContractStats = () => {
     assetCount,
     portfolioCount,
     isLoading: assetCountLoading || portfolioCountLoading,
+  }
+}
+
+export const useAssetValue = (assetId: number) => {
+  const { data, isLoading, error } = useReadContract({
+    address: CONTRACT_ADDRESS as `0x${string}`,
+    abi: VAULT_ASSET_SHIELD_ABI,
+    functionName: 'getAssetValue',
+    args: [BigInt(assetId)],
+  })
+
+  return {
+    value: data,
+    isLoading,
+    error,
+  }
+}
+
+export const useAssetQuantity = (assetId: number) => {
+  const { data, isLoading, error } = useReadContract({
+    address: CONTRACT_ADDRESS as `0x${string}`,
+    abi: VAULT_ASSET_SHIELD_ABI,
+    functionName: 'getAssetQuantity',
+    args: [BigInt(assetId)],
+  })
+
+  return {
+    quantity: data,
+    isLoading,
+    error,
+  }
+}
+
+export const usePortfolioTotalValue = (portfolioId: number) => {
+  const { data, isLoading, error } = useReadContract({
+    address: CONTRACT_ADDRESS as `0x${string}`,
+    abi: VAULT_ASSET_SHIELD_ABI,
+    functionName: 'getPortfolioTotalValue',
+    args: [BigInt(portfolioId)],
+  })
+
+  return {
+    totalValue: data,
+    isLoading,
+    error,
+  }
+}
+
+export const useUserReputation = (userAddress: string) => {
+  const { data, isLoading, error } = useReadContract({
+    address: CONTRACT_ADDRESS as `0x${string}`,
+    abi: VAULT_ASSET_SHIELD_ABI,
+    functionName: 'getUserReputation',
+    args: [userAddress as `0x${string}`],
+  })
+
+  return {
+    reputation: data,
+    isLoading,
+    error,
+  }
+}
+
+export const useUserBalance = (userAddress: string) => {
+  const { data, isLoading, error } = useReadContract({
+    address: CONTRACT_ADDRESS as `0x${string}`,
+    abi: VAULT_ASSET_SHIELD_ABI,
+    functionName: 'getUserBalance',
+    args: [userAddress as `0x${string}`],
+  })
+
+  return {
+    balance: data,
+    isLoading,
+    error,
   }
 }

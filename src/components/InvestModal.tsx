@@ -8,35 +8,35 @@ import { Separator } from "@/components/ui/separator";
 import { Shield, Lock, TrendingUp, AlertTriangle, CheckCircle, DollarSign } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useVaultAssetShield } from "@/hooks/useContract";
 
 interface InvestModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  asset: {
-    title: string;
-    type: "real-estate" | "bonds";
-    value: string;
-    apy: string;
-    minInvestment: string;
-  };
+  isOpen: boolean;
+  onClose: () => void;
+  assetId: number;
+  assetTitle: string;
+  assetType: "real-estate" | "bonds" | "crypto" | "stock" | "commodity";
+  currentValue: number;
+  minInvestment?: string;
 }
 
-export const InvestModal = ({ open, onOpenChange, asset }: InvestModalProps) => {
+export const InvestModal = ({ isOpen, onClose, assetId, assetTitle, assetType, currentValue, minInvestment }: InvestModalProps) => {
   const [investmentAmount, setInvestmentAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [step, setStep] = useState<"amount" | "review" | "success">("amount");
   const { toast } = useToast();
+  const { executeTransaction, isPending } = useVaultAssetShield();
 
-  const minAmount = parseInt(asset.minInvestment.replace(/[$,]/g, ""));
+  const minAmount = minInvestment ? parseInt(minInvestment.replace(/[$,]/g, "")) : 10000;
   const amount = parseFloat(investmentAmount) || 0;
   const estimatedTokens = Math.floor((amount / minAmount) * 1000);
-  const estimatedAnnualReturn = (amount * parseFloat(asset.apy) / 100);
+  const estimatedAnnualReturn = (amount * 8.5 / 100); // Default 8.5% APY
 
   const handleInvest = async () => {
     if (amount < minAmount) {
       toast({
         title: "Investment Amount Too Low",
-        description: `Minimum investment is ${asset.minInvestment}`,
+        description: `Minimum investment is $${minAmount.toLocaleString()}`,
         variant: "destructive",
       });
       return;
@@ -44,32 +44,47 @@ export const InvestModal = ({ open, onOpenChange, asset }: InvestModalProps) => 
 
     setIsProcessing(true);
     
-    // Simulate investment processing
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    setStep("success");
-    setIsProcessing(false);
-    
-    toast({
-      title: "Investment Successful",
-      description: "Your encrypted investment has been processed",
-    });
+    try {
+      // Execute transaction on the smart contract
+      await executeTransaction(
+        assetId,
+        0, // No target asset for deposit
+        Math.floor(amount * 1e18), // Convert to wei
+        0, // Transaction type: deposit
+        `Investment in ${assetTitle}`
+      );
+      
+      setStep("success");
+      toast({
+        title: "Investment Successful",
+        description: "Your investment has been processed on the blockchain",
+      });
+    } catch (error) {
+      console.error('Investment failed:', error);
+      toast({
+        title: "Investment Failed",
+        description: "There was an error processing your investment",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const resetModal = () => {
     setStep("amount");
     setInvestmentAmount("");
     setIsProcessing(false);
-    onOpenChange(false);
+    onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px] bg-vault-surface border-vault-border">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-foreground">
             <Shield className="w-5 h-5 text-vault-primary" />
-            {step === "success" ? "Investment Complete" : `Invest in ${asset.title}`}
+            {step === "success" ? "Investment Complete" : `Invest in ${assetTitle}`}
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
             {step === "success" 
