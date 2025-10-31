@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-contract VaultAssetShield {
+import "fhevm/lib/TFHE.sol";
+import "fhevm/config/ZamaFHEVMConfig.sol";
+
+contract VaultAssetShield is ZamaFHEVMConfig {
     
     enum AssetType {
         BOND,
@@ -13,8 +16,8 @@ contract VaultAssetShield {
     
     struct Asset {
         uint32 assetId;
-        uint256 value;
-        uint256 quantity;
+        euint64 value;           // Encrypted value
+        euint64 quantity;        // Encrypted quantity
         uint8 assetType;
         bool isActive;
         bool isVerified;
@@ -28,7 +31,7 @@ contract VaultAssetShield {
     
     struct Portfolio {
         uint32 portfolioId;
-        uint256 totalValue;
+        euint64 totalValue;      // Encrypted total value
         uint256 assetCount;
         bool isPublic;
         bool isVerified;
@@ -41,8 +44,8 @@ contract VaultAssetShield {
     
     struct Transaction {
         uint32 transactionId;
-        uint256 amount;
-        uint8 transactionType; // 0: deposit, 1: withdraw, 2: transfer
+        euint64 amount;          // Encrypted amount
+        uint8 transactionType;   // 0: deposit, 1: withdraw, 2: transfer
         bool isCompleted;
         string description;
         address from;
@@ -60,9 +63,9 @@ contract VaultAssetShield {
         uint256 timestamp;
     }
     
-    // Investment tracking structure
+    // Investment tracking structure with FHE
     struct Investment {
-        uint256 amount;          // Investment amount
+        euint64 amount;          // Encrypted investment amount
         uint256 timestamp;       // Investment timestamp
         uint256 apy;            // APY at time of investment (in basis points, e.g., 850 = 8.5%)
         bool isActive;          // Whether investment is still active
@@ -110,22 +113,32 @@ contract VaultAssetShield {
     function createAsset(
         string memory _name,
         string memory _description,
-        uint256 _value,
-        uint256 _quantity,
+        einput _encryptedValue,
+        bytes calldata _encryptedValueProof,
+        einput _encryptedQuantity,
+        bytes calldata _encryptedQuantityProof,
         uint8 _assetType,
         string memory _metadataHash
     ) public returns (uint256) {
         require(bytes(_name).length > 0, "Asset name cannot be empty");
-        require(_value > 0, "Asset value must be positive");
-        require(_quantity > 0, "Asset quantity must be positive");
         require(_assetType <= 4, "Invalid asset type");
         
         uint256 assetId = assetCounter++;
         
+        // Convert encrypted inputs to euint64
+        euint64 value = TFHE.asEuint64(_encryptedValue, _encryptedValueProof);
+        euint64 quantity = TFHE.asEuint64(_encryptedQuantity, _encryptedQuantityProof);
+        
+        // Allow access to the asset owner
+        TFHE.allow(value, msg.sender);
+        TFHE.allow(quantity, msg.sender);
+        TFHE.allow(value, address(this));
+        TFHE.allow(quantity, address(this));
+        
         assets[assetId] = Asset({
             assetId: uint32(assetId),
-            value: _value,
-            quantity: _quantity,
+            value: value,
+            quantity: quantity,
             assetType: _assetType,
             isActive: true,
             isVerified: false,
@@ -174,17 +187,26 @@ contract VaultAssetShield {
     function addAssetToPortfolio(
         uint256 _portfolioId,
         uint256 _assetId,
-        uint256 quantity
+        einput _encryptedQuantity,
+        bytes calldata _encryptedQuantityProof
     ) public {
         require(portfolios[_portfolioId].owner == msg.sender, "Only portfolio owner can add assets");
         require(assets[_assetId].owner == msg.sender, "Only asset owner can add to portfolio");
         require(portfolios[_portfolioId].owner != address(0), "Portfolio does not exist");
         require(assets[_assetId].owner != address(0), "Asset does not exist");
         
-        // Update portfolio totals
+        // Convert encrypted quantity
+        euint64 quantity = TFHE.asEuint64(_encryptedQuantity, _encryptedQuantityProof);
+        
+        // Update portfolio totals (encrypted operations)
         portfolios[_portfolioId].assetCount += 1;
-        portfolios[_portfolioId].totalValue += assets[_assetId].value * quantity;
+        euint64 assetValue = TFHE.mul(assets[_assetId].value, quantity);
+        portfolios[_portfolioId].totalValue = TFHE.add(portfolios[_portfolioId].totalValue, assetValue);
         portfolios[_portfolioId].updatedAt = block.timestamp;
+        
+        // Allow access
+        TFHE.allow(portfolios[_portfolioId].totalValue, msg.sender);
+        TFHE.allow(portfolios[_portfolioId].totalValue, address(this));
     }
     
     // Set APY for an asset (only asset owner can set)
@@ -194,7 +216,7 @@ contract VaultAssetShield {
         assetAPY[_assetId] = _apy;
     }
     
-    // Public investment function - anyone can invest in an asset
+    // Public investment function - anyone can invest in an asset (with FHE)
     function invest(
         uint256 _assetId,
         string memory _description
@@ -205,9 +227,14 @@ contract VaultAssetShield {
         
         uint256 transactionId = transactionCounter++;
         
+        // Encrypt the amount
+        euint64 encryptedAmount = TFHE.asEuint64(msg.value);
+        TFHE.allow(encryptedAmount, msg.sender);
+        TFHE.allow(encryptedAmount, address(this));
+        
         transactions[transactionId] = Transaction({
             transactionId: uint32(transactionId),
-            amount: msg.value,
+            amount: encryptedAmount,
             transactionType: 0, // Deposit/Investment
             isCompleted: true,
             description: _description,
@@ -218,24 +245,40 @@ contract VaultAssetShield {
         
         // Record or update user investment
         Investment storage userInv = userInvestments[msg.sender][_assetId];
-        if (userInv.amount == 0) {
+        euint64 zero = TFHE.asEuint64(0);
+        
+        // Check if this is a new investment (compare encrypted amount with zero)
+        ebool isNewInvestment = TFHE.eq(userInv.amount, zero);
+        
+        if (TFHE.decrypt(isNewInvestment)) {
             // New investment
+            euint64 investAmount = TFHE.asEuint64(msg.value);
+            TFHE.allow(investAmount, msg.sender);
+            TFHE.allow(investAmount, address(this));
+            
             userInvestments[msg.sender][_assetId] = Investment({
-                amount: msg.value,
+                amount: investAmount,
                 timestamp: block.timestamp,
                 apy: assetAPY[_assetId] > 0 ? assetAPY[_assetId] : 850, // Default 8.5%
                 isActive: true
             });
         } else {
-            // Additional investment - calculate existing earnings first
-            uint256 existingEarnings = calculateEarnings(msg.sender, _assetId);
-            userInv.amount += msg.value + existingEarnings;
+            // Additional investment - add to existing
+            euint64 additionalAmount = TFHE.asEuint64(msg.value);
+            userInv.amount = TFHE.add(userInv.amount, additionalAmount);
             userInv.timestamp = block.timestamp; // Reset timestamp for new investment period
+            
+            TFHE.allow(userInv.amount, msg.sender);
+            TFHE.allow(userInv.amount, address(this));
         }
         
-        // Increase asset value
-        assets[_assetId].value += msg.value;
+        // Increase asset value (encrypted addition)
+        euint64 valueIncrease = TFHE.asEuint64(msg.value);
+        assets[_assetId].value = TFHE.add(assets[_assetId].value, valueIncrease);
         assets[_assetId].updatedAt = block.timestamp;
+        
+        TFHE.allow(assets[_assetId].value, assets[_assetId].owner);
+        TFHE.allow(assets[_assetId].value, address(this));
         
         emit InvestmentMade(msg.sender, _assetId, msg.value, assetAPY[_assetId]);
         emit TransactionExecuted(transactionId, msg.sender, assets[_assetId].owner, 0);
