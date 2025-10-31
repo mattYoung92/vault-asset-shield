@@ -27,8 +27,10 @@ export const InvestModal = ({ isOpen, onClose, assetId, assetTitle, assetType, c
   const { toast } = useToast();
   const { invest, isPending } = useVaultAssetShield();
 
-  const minAmount = minInvestment ? parseInt(minInvestment.replace(/[$,]/g, "")) : 10000;
+  const ETH_PRICE_USD = 3500; // ETH price in USD
+  const minAmount = minInvestment ? parseInt(minInvestment.replace(/[$,]/g, "")) : 100;
   const amount = parseFloat(investmentAmount) || 0;
+  const amountInEth = amount / ETH_PRICE_USD; // Convert USD to ETH
   const estimatedTokens = Math.floor((amount / minAmount) * 1000);
   const estimatedAnnualReturn = (amount * 8.5 / 100); // Default 8.5% APY
 
