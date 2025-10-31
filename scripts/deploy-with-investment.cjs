@@ -37,11 +37,12 @@ async function main() {
   // Create assets with APY
   console.log("\n=== Creating Assets with APY ===");
   
+  // ETH Price: $4,000
   const realWorldAssets = [
     {
       name: "Manhattan Office Tower",
       description: "Premium commercial real estate in Manhattan with 95% occupancy rate",
-      value: ethers.parseEther("350000"),
+      value: ethers.parseEther("87.5"),  // $350,000 / 4000
       quantity: ethers.parseEther("1000000"),
       assetType: 1, // Real Estate
       metadataHash: "QmHash0",
@@ -50,7 +51,7 @@ async function main() {
     {
       name: "US Treasury Bonds 2024",
       description: "Secure US Treasury Bonds with guaranteed returns",
-      value: ethers.parseEther("175000"),
+      value: ethers.parseEther("43.75"),  // $175,000 / 4000
       quantity: ethers.parseEther("500000"),
       assetType: 0, // Bonds
       metadataHash: "QmHash1",
@@ -59,7 +60,7 @@ async function main() {
     {
       name: "Tech Startup Equity",
       description: "High-growth tech startup equity with strong fundamentals",
-      value: ethers.parseEther("262500"),
+      value: ethers.parseEther("65.625"),  // $262,500 / 4000
       quantity: ethers.parseEther("750000"),
       assetType: 3, // Stock
       metadataHash: "QmHash2",
@@ -68,7 +69,7 @@ async function main() {
     {
       name: "Gold Commodity Fund",
       description: "Physical gold-backed investment fund",
-      value: ethers.parseEther("700000"),
+      value: ethers.parseEther("175"),  // $700,000 / 4000
       quantity: ethers.parseEther("2000000"),
       assetType: 4, // Commodity
       metadataHash: "QmHash3",
@@ -77,7 +78,7 @@ async function main() {
     {
       name: "Bitcoin ETF",
       description: "Cryptocurrency ETF tracking Bitcoin price",
-      value: ethers.parseEther("525000"),
+      value: ethers.parseEther("131.25"),  // $525,000 / 4000
       quantity: ethers.parseEther("1500000"),
       assetType: 2, // Crypto
       metadataHash: "QmHash4",
@@ -86,7 +87,7 @@ async function main() {
     {
       name: "European Real Estate Fund",
       description: "Diversified European real estate portfolio",
-      value: ethers.parseEther("1050000"),
+      value: ethers.parseEther("262.5"),  // $1,050,000 / 4000
       quantity: ethers.parseEther("3000000"),
       assetType: 1, // Real Estate
       metadataHash: "QmHash5",
@@ -139,4 +140,5 @@ main()
     console.error(error);
     process.exit(1);
   });
+
 

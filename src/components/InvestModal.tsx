@@ -27,7 +27,7 @@ export const InvestModal = ({ isOpen, onClose, assetId, assetTitle, assetType, c
   const { toast } = useToast();
   const { invest, isPending } = useVaultAssetShield();
 
-  const ETH_PRICE_USD = 3500; // ETH price in USD
+  const ETH_PRICE_USD = 4000; // ETH price in USD
   const minAmount = minInvestment ? parseInt(minInvestment.replace(/[$,]/g, "")) : 100;
   const amount = parseFloat(investmentAmount) || 0;
   const amountInEth = amount / ETH_PRICE_USD; // Convert USD to ETH

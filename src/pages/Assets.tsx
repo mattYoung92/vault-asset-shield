@@ -32,12 +32,12 @@ const Assets = () => {
     const assets = [];
     const assetCountNum = assetCount ? Number(assetCount) : 0;
     
-    // Real-world asset data with realistic values and lower minimum investments
+    // Real-world asset data with ETH pricing (ETH = $4,000)
     const realWorldAssets = [
       {
         title: "Manhattan Office Tower",
         type: "real-estate" as const,
-        value: "$350,000",
+        value: "87.5 ETH",  // $350,000 / 4000
         apy: "8.5%",
         minInvestment: "$100",
         image: realEstate1
@@ -45,7 +45,7 @@ const Assets = () => {
       {
         title: "US Treasury Bonds 2024",
         type: "bonds" as const,
-        value: "$175,000",
+        value: "43.75 ETH",  // $175,000 / 4000
         apy: "3.5%",
         minInvestment: "$100",
         image: bonds1
@@ -53,7 +53,7 @@ const Assets = () => {
       {
         title: "Tech Startup Equity",
         type: "stock" as const,
-        value: "$262,500",
+        value: "65.625 ETH",  // $262,500 / 4000
         apy: "15.0%",
         minInvestment: "$100",
         image: realEstate1
@@ -61,7 +61,7 @@ const Assets = () => {
       {
         title: "Gold Commodity Fund",
         type: "commodity" as const,
-        value: "$700,000",
+        value: "175 ETH",  // $700,000 / 4000
         apy: "6.2%",
         minInvestment: "$100",
         image: bonds1
@@ -69,7 +69,7 @@ const Assets = () => {
       {
         title: "Bitcoin ETF",
         type: "crypto" as const,
-        value: "$525,000",
+        value: "131.25 ETH",  // $525,000 / 4000
         apy: "12.8%",
         minInvestment: "$100",
         image: realEstate1
@@ -77,7 +77,7 @@ const Assets = () => {
       {
         title: "European Real Estate Fund",
         type: "real-estate" as const,
-        value: "$1,050,000",
+        value: "262.5 ETH",  // $1,050,000 / 4000
         apy: "7.3%",
         minInvestment: "$100",
         image: bonds1

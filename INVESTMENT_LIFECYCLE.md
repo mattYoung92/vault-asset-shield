@@ -268,3 +268,4 @@ await writeContract({
 - Withdrawal includes all accumulated earnings
 - Investment becomes inactive after withdrawal
 - Contract must have sufficient ETH for withdrawals
+
